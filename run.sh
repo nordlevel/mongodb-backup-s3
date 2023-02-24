@@ -10,6 +10,8 @@ MONGODB_PASS=${MONGODB_PASS:-${MONGODB_ENV_MONGODB_PASS}}
 S3PATH="s3://$BUCKET/$BACKUP_FOLDER"
 
 [[ ( -n "${BUCKET_REGION}" ) ]] && REGION_STR=" --region ${BUCKET_REGION}"
+[[ ( -n "${BUCKET_ENDPOINT}" ) ]] && BUCKET_ENDPOINT=" --endpoint-url ${BUCKET_ENDPOINT}"
+
 
 [[ ( -z "${MONGODB_USER}" ) && ( -n "${MONGODB_PASS}" ) ]] && MONGODB_USER='admin'
 
@@ -30,7 +32,7 @@ S3BACKUP=${S3PATH}\${BACKUP_NAME}
 S3LATEST=${S3PATH}latest.dump.gz
 aws configure set default.s3.signature_version s3v4
 echo "=> Backup started"
-if mongodump --host ${MONGODB_HOST} --port ${MONGODB_PORT} ${USER_STR}${PASS_STR}${DB_STR} --archive=/backup/\${BACKUP_NAME} --gzip ${EXTRA_OPTS} && aws s3 cp /backup/\${BACKUP_NAME} \${S3BACKUP} ${REGION_STR} && aws s3 cp \${S3BACKUP} \${S3LATEST} ${REGION_STR} ;then
+if mongodump --host ${MONGODB_HOST} --port ${MONGODB_PORT} ${USER_STR}${PASS_STR}${DB_STR} --archive=/backup/\${BACKUP_NAME} --gzip ${EXTRA_OPTS} && aws s3 cp /backup/\${BACKUP_NAME} \${S3BACKUP} ${REGION_STR} ${BUCKET_ENDPOINT} && aws s3 cp \${S3BACKUP} \${S3LATEST} ${REGION_STR} ${BUCKET_ENDPOINT} ;then
     echo "   > Backup succeeded"
 else
     echo "   > Backup failed"
@@ -55,7 +57,7 @@ fi
 S3RESTORE=${S3PATH}\${RESTORE_ME}
 aws configure set default.s3.signature_version s3v4
 echo "=> Restore database from \${RESTORE_ME}"
-if aws s3 cp \${S3RESTORE} \${RESTORE_ME} ${REGION_STR} && mongorestore --host ${MONGODB_HOST} --port ${MONGODB_PORT} ${USER_STR}${PASS_STR}${DB_STR} --drop --archive=\${RESTORE_ME} --gzip && rm \${RESTORE_ME}; then
+if aws s3 cp \${S3RESTORE} \${RESTORE_ME} ${REGION_STR} ${BUCKET_ENDPOINT} && mongorestore --host ${MONGODB_HOST} --port ${MONGODB_PORT} ${USER_STR}${PASS_STR}${DB_STR} --drop --archive=\${RESTORE_ME} --gzip && rm \${RESTORE_ME}; then
     echo "   Restore succeeded"
 else
     echo "   Restore failed"
